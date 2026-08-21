@@ -1,2 +1,19 @@
-# arbetsmiljoplan-app
-Digital arbetsmiljöplan för byggprojekt – Quality WorX. Formulär, spara, PDF/Word-export.
+# Arbetsmiljöplan App
+
+Digital arbetsmiljöplan för byggprojekt – risker, skyddsåtgärder och export.
+
+## Funktioner
+
+- Projektinformation
+- Kontrollmoment med status 1–2–3
+- Spara i webbläsaren
+- Export: PDF, Word, text
+
+## Kör lokalt
+
+```bash
+npm install
+npm run dev
+```
+
+Quality WorX – redo för Vercel + Gumroad.
