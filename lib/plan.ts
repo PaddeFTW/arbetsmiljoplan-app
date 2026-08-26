@@ -16,10 +16,25 @@ export interface ProjectInfo {
   kma: string;
   arbetsledare: string;
   skyddsombud: string;
+  basP: string;
+  basU: string;
+  handlaggare: string;
   entreprenadform: "total" | "utforande" | "";
   projektbeskrivning: string;
   startDatum: string;
   slutDatum: string;
+  narmstaAkut: string;
+  akutTelefon: string;
+  akutAdress: string;
+}
+
+export interface PersonRow {
+  id: string;
+  role: string;
+  name: string;
+  mobile: string;
+  email: string;
+  extra: string;
 }
 
 export interface ChecklistItem {
@@ -36,10 +51,17 @@ export interface PlanRecord {
   updatedAt: string;
   project: ProjectInfo;
   policyNote: string;
+  organization: PersonRow[];
+  workers: PersonRow[];
+  subcontractors: PersonRow[];
   checklist: ChecklistItem[];
+  safetyRounds: ChecklistItem[];
+  receipts: PersonRow[];
+  approvalName: string;
+  approvalDate: string;
 }
 
-export const STORAGE_KEY = "arbetsmiljoplan-app-v1";
+export const STORAGE_KEY = "arbetsmiljoplan-app-v2";
 export const PRODUCT_TITLE = "Arbetsmiljöplan";
 
 export const emptyProject: ProjectInfo = {
@@ -58,28 +80,60 @@ export const emptyProject: ProjectInfo = {
   kma: "",
   arbetsledare: "",
   skyddsombud: "",
+  basP: "",
+  basU: "",
+  handlaggare: "",
   entreprenadform: "",
   projektbeskrivning: "",
   startDatum: "",
   slutDatum: "",
+  narmstaAkut: "",
+  akutTelefon: "",
+  akutAdress: "",
 };
 
+function row(role = "", extraLabel = ""): PersonRow {
+  return { id: crypto.randomUUID(), role, name: "", mobile: "", email: "", extra: extraLabel };
+}
+function item(id: string, title: string): ChecklistItem {
+  return { id, title, status: "", date: "", sign: "", note: "" };
+}
+
+export const defaultOrganization: PersonRow[] = [
+  row("Projektchef"), row("Platschef"), row("Bas P"), row("Bas U"), row("Kontrollansvarig"),
+  row("Kvalitetsansvarig"), row("Arbetsmiljösamordnare"), row("Arbetsmiljöansvarig"),
+  row("Huvudskyddsombud"), row("Skyddsombud"), row("Arbetsledare"),
+];
+
 export const defaultChecklist: ChecklistItem[] = [
-  { id: "riskbedomning", title: "Riskbedömning genomförd för arbetsmoment", status: "", date: "", sign: "", note: "" },
-  { id: "skyddsutrustning", title: "Personlig skyddsutrustning kravställd", status: "", date: "", sign: "", note: "" },
-  { id: "introduktion", title: "Arbetsmiljöintroduktion för nya på plats", status: "", date: "", sign: "", note: "" },
-  { id: "fallskydd", title: "Fallskydd planerat där höjdarbete förekommer", status: "", date: "", sign: "", note: "" },
-  { id: "tunga_lyft", title: "Tunga lyft och ergonomi bedömda", status: "", date: "", sign: "", note: "" },
-  { id: "maskiner", title: "Maskiner och verktyg i säkert skick", status: "", date: "", sign: "", note: "" },
-  { id: "el", title: "Elsäkerhet och provisorisk el kontrollerad", status: "", date: "", sign: "", note: "" },
-  { id: "brand", title: "Brandskydd och utrömningsvägar kända", status: "", date: "", sign: "", note: "" },
-  { id: "forsta_hjalpen", title: "Första hjälpen och nödnummer anslagna", status: "", date: "", sign: "", note: "" },
-  { id: "kem_exponering", title: "Exponering för damm/kemikalier minimerad", status: "", date: "", sign: "", note: "" },
-  { id: "trafik", title: "Trafik och logistik på arbetsplatsen säkrad", status: "", date: "", sign: "", note: "" },
-  { id: "skyddsombud", title: "Skyddsombud informerat och delaktigt", status: "", date: "", sign: "", note: "" },
-  { id: "tillbud", title: "Rutin för tillbud och olyckor känd", status: "", date: "", sign: "", note: "" },
-  { id: "samordning", title: "BAS-P/BAS-U-samordning fungerar", status: "", date: "", sign: "", note: "" },
-  { id: "uppfoljning_am", title: "Arbetsmiljöuppföljning under projektet", status: "", date: "", sign: "", note: "" }
+  item("fall", "Åtgärder mot fall till lägre nivå (2 m eller mer) – AFS 2023:10"),
+  item("stallning", "Ställningar godkända och märkta"),
+  item("tak", "Takarbete och fallskydd planerat"),
+  item("lyft", "Lyftanordningar och lyftredskap utan skador"),
+  item("maskiner", "Maskiner med skydd på plats"),
+  item("el", "Tillfällig el och jordfelsbrytare"),
+  item("heta", "Heta arbeten – tillstånd och utbildning"),
+  item("brand", "Brandskydd och utrömning"),
+  item("buller", "Buller och hörselskydd"),
+  item("damm", "Damm och andningsskydd"),
+  item("kem", "Farliga ämnen uppmärkta, SDS tillgängliga"),
+  item("ergonomi", "Ergonomiska hjälpmedel"),
+  item("trafik", "Trafik vid arbetsplatsen"),
+  item("ordning", "Allmän ordning och städning"),
+  item("tillbud", "Rutin för tillbud och olyckor"),
+];
+
+export const defaultSafetyRounds: ChecklistItem[] = [
+  item("sr1", "Allmän ordning (städning)"),
+  item("sr2", "Arbetsmiljö (trivsel, kränkande särbehandling)"),
+  item("sr3", "Avstängningsanordningar"),
+  item("sr4", "Brandskydd"),
+  item("sr5", "Buller"),
+  item("sr6", "Fallskydd"),
+  item("sr7", "Farliga ämnen"),
+  item("sr8", "Lyftanordningar / lyftredskap"),
+  item("sr9", "Ställningar"),
+  item("sr10", "Tillfällig el"),
 ];
 
 export function createEmptyPlan(): PlanRecord {
@@ -88,7 +142,14 @@ export function createEmptyPlan(): PlanRecord {
     updatedAt: new Date().toISOString(),
     project: { ...emptyProject },
     policyNote: "",
-    checklist: defaultChecklist.map((item) => ({ ...item })),
+    organization: defaultOrganization.map((r) => ({ ...r, id: crypto.randomUUID() })),
+    workers: [row("", "ID06 / behörighet")],
+    subcontractors: [row("Underentreprenör", "org.nr / antal")],
+    checklist: defaultChecklist.map((c) => ({ ...c })),
+    safetyRounds: defaultSafetyRounds.map((c) => ({ ...c })),
+    receipts: [row("Medarbetare"), row("Underentreprenör")],
+    approvalName: "",
+    approvalDate: "",
   };
 }
 
@@ -109,22 +170,15 @@ export function savePlans(plans: PlanRecord[]) {
 
 export function statusLabel(status: ChecklistStatus) {
   switch (status) {
-    case "ok":
-      return "1 – Godkänt";
-    case "ej-ok":
-      return "2 – Ej godkänt";
-    case "ej-kontrollerat":
-      return "3 – Ej kontrollerat";
-    default:
-      return "—";
+    case "ok": return "1 – Godkänt";
+    case "ej-ok": return "2 – Ej godkänt";
+    case "ej-kontrollerat": return "3 – Ej kontrollerat";
+    default: return "—";
   }
 }
 
 export function planProgress(plan: PlanRecord) {
-  const done = plan.checklist.filter((c) => c.status === "ok").length;
-  return {
-    done,
-    total: plan.checklist.length,
-    percent: Math.round((done / plan.checklist.length) * 100),
-  };
+  const all = [...plan.checklist, ...plan.safetyRounds];
+  const done = all.filter((c) => c.status === "ok").length;
+  return { done, total: all.length, percent: all.length ? Math.round((done / all.length) * 100) : 0 };
 }
